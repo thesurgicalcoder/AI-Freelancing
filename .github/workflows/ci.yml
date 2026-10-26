@@ -1,0 +1,22 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: {POSTGRES_DB: trustlancer, POSTGRES_USER: trustlancer, POSTGRES_PASSWORD: trustlancer}
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U trustlancer" --health-interval 5s --health-retries 10
+    env:
+      DJANGO_SECRET_KEY: ci-only-secret
+      DATABASE_URL: postgres://trustlancer:trustlancer@localhost:5432/trustlancer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13", cache: pip}
+      - run: pip install -r requirements-dev.txt
+      - run: python manage.py makemigrations --check --dry-run
+      - run: pytest

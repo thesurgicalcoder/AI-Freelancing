@@ -1,74 +1,58 @@
-# TrustLancer AI 🚀
-### *The Future of Work is AI-Driven.*
+# TrustLancer AI
 
-TrustLancer AI is a decentralized freelancing platform powered by autonomous AI agents. We solve the core problems of the gig economy: **fraud, payment disputes, and project management overhead.**
+A freelancing platform where **clients choose who may submit**, **AI helps rank the submissions**, and
+**payment is proportional to the work accepted**, held in escrow until the client decides.
 
----
+> Status: Phase 1 (foundation). The payment engine, permissions and workflow are real and tested.
+> The AI repo analysis is **not implemented yet** (Phase 2) and is reported honestly as "unavailable" rather than faked.
 
-## 🌟 Key Features
+## Workflow
 
-### 1. AI Project Architect
-Clients describe their vision in natural language. Our **Milestone Agent** deconstructs the request into technical milestones with fair budget splits automatically.
+1. **Client** posts a project. The planner splits it into milestones; each milestone has weighted **acceptance criteria** (weights sum to 100).
+2. **Freelancers** apply. The client approves the ones allowed to submit (applicants are shown ranked by PFI).
+3. Client **funds a milestone**: money moves from their wallet into **escrow** (ledger-recorded).
+4. Approved freelancers submit a GitHub repo. The AI review (Phase 2) scores each criterion; submissions are **ranked** for the client.
+5. The client decides: **accept** (marks which criteria passed), **request revision**, or **reject**.
+   Payout = escrow x (sum of passed criteria weights / 100). The unmet share is refunded. A minimum threshold (30%) applies.
 
-### 2. Autonomous AI Audit
-Freelancers submit GitHub repository links. Our **Verification Agent** autonomous reviews the code quality, adherence to milestones, and security before authorizing payment release.
+## Money safety
 
-### 3. Smart Contract Escrow
-Payments are held in a secure liquid escrow. Funds are only released when the AI Verification Agent confirms the milestone criteria have been met—no manual intervention required.
+- Wallet changes happen only in `core_api/services.py`, inside `transaction.atomic()` with row locks.
+- Append-only `LedgerEntry` log; internal transfers net to zero; tests assert money conservation (wallets + escrow = deposits).
+- A decided submission or paid milestone cannot be paid twice; only one submission can win a milestone.
+- DB constraint: wallet balance can never go negative.
 
-### 4. Profile Factor Index (PFI)
-A reputation node for engineers. AI matches the best talent based on technical vision compatibility and project complexity history.
+## Run it
 
----
-
-## 🛠 Tech Stack
-
-- **Frontend**: HTML5, Tailwind CSS (High-Fidelity Premium UI), Vanilla JS.
-- **Backend**: Django & Django REST Framework (Core Engine).
-- **AI Microservice**: Flask (Agentic Intelligence).
-- **Agents**: Custom NLP logic for deconstruction, verification, and reputation scoring.
-- **Database**: PostgreSQL/SQLite (Neural Storage).
-
----
-
-## 🚀 Quick Start (Hackathon Ready)
-
-### 1. Clone & Setup Backend
 ```bash
-# Activate Virtual Environment
-.\venv\Scripts\activate
-
-# Install Dependencies
-pip install -r requirements.txt
-
-# Run Migrations
-python manage.py migrate
-
-# Seed Neural Data (Crucial for Demo)
-python seed_db.py
-
-# Start Django Server
-python manage.py runserver
+cp .env.example .env            # set DJANGO_SECRET_KEY, keep DJANGO_DEBUG=true for local dev
+pip install -r requirements-dev.txt
+python manage.py migrate && python seed_db.py
+python manage.py runserver                               # API + pages on :8000
+(cd ai_services/flask_app && pip install -r ../requirements.txt && python app.py)   # planner on :5001
+pytest
 ```
 
-### 2. Launch AI Intelligence (Flask)
-```bash
-cd ai_services/flask_app
-python app.py
-```
+Or `docker compose up --build` (Postgres + web + AI service).
 
-### 3. Connect & Deploy
-Open `http://127.0.0.1:8000/` and launch the **Client** or **Engineer** Command Centers.
+## API (JWT: `Authorization: Bearer <access>`)
 
----
+| Method & path | Who | Purpose |
+| --- | --- | --- |
+| `POST /api/auth/register/`, `/login/`, `/refresh/` | anyone | auth |
+| `GET/POST /api/projects/` | client creates; freelancers browse open projects | projects + AI milestones |
+| `POST /api/projects/{id}/apply/` | freelancer | apply |
+| `GET /api/projects/{id}/applications/` | owner | applicants ranked by PFI |
+| `POST /api/applications/{id}/decide/` | owner | `approve` / `reject` |
+| `GET /api/wallet/`, `POST /api/wallet/deposit/` | any | balance; test-mode top-up (dev only) |
+| `POST /api/milestones/{id}/fund/` | owner | move payment into escrow |
+| `POST /api/milestones/{id}/submit/` | approved freelancer | submit repo (needs funded milestone) |
+| `GET /api/milestones/{id}/submissions/` | owner | submissions, AI-ranked |
+| `POST /api/submissions/{id}/decide/` | owner | accept (with `passed_criteria`) / request_revision / reject |
 
-## 🧠 Navigation Guide
-- **Client Command Center**: Architect projects, monitor infrastructure, and hire AI-matched nodes.
-- **Engineer Command Center**: Open the Neural Submission Hub to deploy code and receive automated payments.
-- **Lancer Marketplace**: Explore active project nodes indexed by AI.
-- **Neural Hub**: Monitor real-time logs of AI agent activity.
+## Roadmap
 
----
-
-**Built for the future of decentralized collaboration.**
-*&copy; 2026 TrustLancer AI Core*
+- **Phase 2:** real analysis (GitHub API, static analysis, LLM per-criterion scoring), Celery + Redis, plagiarism check.
+- **Phase 3:** Stripe Connect (test mode) replacing the test deposit; disputes; auto-release timeout.
+- **Phase 4:** React/TypeScript frontend (the current Django templates are legacy and not yet wired to the new workflow).
+- **Phase 5:** deploy, monitoring (Sentry), load tests, demo.

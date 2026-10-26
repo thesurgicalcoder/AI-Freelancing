@@ -1,18 +1,17 @@
-# flask_app/agents/verification_agent.py
-import random
+"""Repository verification.
 
-def verify_submission(github_link):
-    if not github_link or "github.com" not in github_link:
-        return {"status": "rejected", "reason": "Invalid Repository Link"}
+Phase 1: intentionally NOT faked. It reports `available: false`, so Django falls back to manual
+client review instead of auto-approving on a random score. Phase 2 replaces this with a real
+GitHub-API + static-analysis + LLM pipeline returning per-criterion results in the same shape:
+  {"available": true, "score": 0-100, "summary": str,
+   "results": [{"criterion_id": int, "passed": bool, "note": str}]}
+"""
+from urllib.parse import urlparse
 
-    # Hackathon Logic: Simulate code analysis
-    # Real version: Use GitHub API to check latest commits/PRs
-    quality_score = random.randint(70, 95) 
-    
-    return {
-        "completion_status": "Verified",
-        "quality_score": quality_score,
-        "is_plagiarized": False,  # Added this field for fraud detection
-        "approval_or_rejection": "Approved" if quality_score > 75 else "Needs Revision",
-        "feedback": "Code follows PEP8 standards. Good documentation found."
-    }
+
+def verify_submission(github_link, criteria=None):
+    host = urlparse(github_link or '').netloc.lower()
+    if host not in ('github.com', 'www.github.com'):
+        return {'available': False, 'summary': 'Not a valid GitHub repository link.'}
+    return {'available': False,
+            'summary': 'Automated repository analysis is not enabled yet; please review manually.'}

@@ -217,7 +217,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Token ${token}`
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
                     title: vision.substring(0, 30) + (vision.length > 30 ? '...' : ''),

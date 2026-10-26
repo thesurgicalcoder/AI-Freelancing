@@ -1,91 +1,43 @@
+"""Seed demo data (dev only):  DJANGO_DEBUG=true python seed_db.py"""
 import os
-import django
 import sys
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-# Setup Django environment
+import django
+
 sys.path.append(os.getcwd())
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 
-from core_api.models import User, Project, Milestone
+from django.utils import timezone  # noqa: E402
 
-def seed_data():
-    print("Seed process initialized. Purging existing node data...")
-    # Delete existing data to start fresh
-    Project.objects.all().delete()
-    Milestone.objects.all().delete()
-    
-    # Ensure users exist
-    client, _ = User.objects.get_or_create(username='Alpha_Client', email='client@trust.ai')
-    if _:
-        client.set_password('pass123')
-        client.role = 'Client'
-        client.save()
+from core_api import services  # noqa: E402
+from core_api.models import Project, ProjectApplication, User  # noqa: E402
 
-    freelancer, _ = User.objects.get_or_create(username='Neural_Engineer', email='eng@trust.ai')
-    if _:
-        freelancer.set_password('pass123')
-        freelancer.role = 'Freelancer'
-        freelancer.pfi_score = 98.4
-        freelancer.save()
+PASSWORD = os.getenv('SEED_PASSWORD', 'Demo-pass-2026')
 
-    # Create Projects
-    projects_data = [
-        {
-            'title': 'Autonomous Liquidity Protocol',
-            'desc': 'Build a decentralized DeFi liquidity aggregator with AI-managed risk profiles and cross-chain bridging.',
-            'budget': 15000,
-            'status': 'In Progress',
-            'milestones': [
-                ('Smart Contract V1 - Liquidity Engine', 3000, 'Paid'),
-                ('Risk Assessment AI Integration', 5000, 'Completed'),
-                ('Cross-chain bridge relay nodes', 4000, 'Open'),
-                ('Security Audit & Mainnet Launch', 3000, 'Open'),
-            ]
-        },
-        {
-            'title': 'Generative UI Neural Engine',
-            'desc': 'Developing a system that generates React components based on natural language project visions.',
-            'budget': 8000,
-            'status': 'Open',
-            'milestones': [
-                ('LLM fine-tuning for tailwind patterns', 2000, 'Open'),
-                ('Dynamic Component Renderer', 3000, 'Open'),
-                ('Integration with TrustLancer API', 3000, 'Open'),
-            ]
-        },
-        {
-            'title': 'Zk-Proof Identity Gateway',
-            'desc': 'Implementing zero-knowledge identity verification for high-security freelancer nodes.',
-            'budget': 12000,
-            'status': 'In Progress',
-            'milestones': [
-                ('Circuit design for Zk-Snarks', 4000, 'Paid'),
-                ('On-chain verification contract', 4000, 'Open'),
-                ('Frontend Credential Dashboard', 4000, 'Open'),
-            ]
-        }
-    ]
 
-    for p_data in projects_data:
-        p = Project.objects.create(
-            title=p_data['title'],
-            description=p_data['desc'],
-            budget=p_data['budget'],
-            status=p_data['status'],
-            client=client,
-            deadline=datetime.now() + timedelta(days=30)
-        )
-        for m_title, m_pay, m_status in p_data['milestones']:
-            Milestone.objects.create(
-                project=p,
-                title=m_title,
-                payment=m_pay,
-                status=m_status
-            )
-    
-    print(f"Successfully deployed {len(projects_data)} project nodes and associated milestones.")
+def main():
+    client, _ = User.objects.get_or_create(username='demo_client', defaults={'role': 'Client', 'email': 'client@example.com'})
+    client.set_password(PASSWORD); client.save()
+    freelancers = []
+    for name in ('demo_dev_a', 'demo_dev_b'):
+        f, _ = User.objects.get_or_create(username=name, defaults={'role': 'Freelancer', 'email': f'{name}@example.com'})
+        f.set_password(PASSWORD); f.save()
+        freelancers.append(f)
+    services.deposit(client, '5000')
+
+    Project.objects.filter(client=client).delete()
+    for title, desc, budget in [
+        ('Inventory REST API', 'Build a REST API for warehouse inventory with a React admin UI.', '2000'),
+        ('Churn prediction service', 'Train and serve an ML model that predicts customer churn.', '3000'),
+    ]:
+        p = Project.objects.create(client=client, title=title, description=desc, budget=budget,
+                                   deadline=timezone.now() + timedelta(days=30))
+        services.generate_milestones(p)
+        ProjectApplication.objects.create(project=p, freelancer=freelancers[0])
+    print(f'Seeded. Log in as demo_client / demo_dev_a / demo_dev_b with password {PASSWORD!r}.')
+
 
 if __name__ == '__main__':
-    seed_data()
+    main()

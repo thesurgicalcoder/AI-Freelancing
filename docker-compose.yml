@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: trustlancer
+      POSTGRES_USER: trustlancer
+      POSTGRES_PASSWORD: trustlancer
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trustlancer"]
+      interval: 5s
+      retries: 10
+  ai:
+    build: ./ai_services
+  web:
+    build: .
+    ports: ["8000:8000"]
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-local-compose-only-change-me}
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      DATABASE_URL: postgres://trustlancer:trustlancer@db:5432/trustlancer
+      AI_SERVICE_URL: http://ai:5001/ai
+      ALLOW_TEST_DEPOSIT: "true"
+    depends_on:
+      db: {condition: service_healthy}
+      ai: {condition: service_started}
+volumes:
+  pgdata:

@@ -47,3 +47,9 @@ instance/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local
+.env
+db.sqlite3
+staticfiles/
+.pytest_cache/

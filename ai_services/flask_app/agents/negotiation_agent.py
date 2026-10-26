@@ -1,23 +1,12 @@
-# flask_app/agents/negotiation_agent.py
+import re
+
+KEYWORDS = [r'\bai\b', r'machine learning', r'blockchain', r'\breact\b', r'full\s?stack']
+
 
 def check_negotiation(description, budget):
-    # Simple complexity estimator
-    complexity_keywords = ['ai', 'machine learning', 'blockchain', 'react', 'fullstack']
-    estimated_min = 200
-    
-    for word in complexity_keywords:
-        if word in description.lower():
-            estimated_min += 150
-            
-    if budget < estimated_min:
-        return {
-            "status": "Unrealistic",
-            "message": "Budget too low for project scope.",
-            "recommended_range": f"${estimated_min} - ${estimated_min + 300}",
-            "suggestion": "Increase budget to attract high-quality developers."
-        }
-    
-    return {
-        "status": "Fair",
-        "message": "The budget aligns with market standards for this scope."
-    }
+    """Rough budget sanity check (placeholder heuristic)."""
+    estimated_min = 200 + 150 * sum(1 for k in KEYWORDS if re.search(k, description or '', re.I))
+    if float(budget) < estimated_min:
+        return {'status': 'Unrealistic', 'message': 'Budget looks low for the described scope.',
+                'recommended_range': f'${estimated_min} - ${estimated_min + 300}'}
+    return {'status': 'Fair', 'message': 'The budget looks reasonable for this scope.'}
